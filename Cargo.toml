@@ -1,0 +1,25 @@
+[package]
+name = "desim_benchmark"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "desim_benchmark"
+path = "src/lib.rs"
+
+[[bin]]
+name = "test_sim"
+path = "src/main.rs"
+bench = false
+
+[[bench]]
+name = "main"
+harness = false
+
+[dependencies]
+desim = "0.2.0"
+
+[dev-dependencies]
+criterion = "0.3.5"
