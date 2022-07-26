@@ -48,7 +48,7 @@ fn set_simulation() -> Simulation<Effect> {
 }
 
 fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated; 2]>, consumer_key: StateKey<Option<usize>>, count_key: StateKey<usize>) -> Box<SimGen<Effect>> {
-    Box::new(move |x: SimContext<Effect>| {
+    Box::new(move |_x: SimContext<Effect>| {
         let shared_state = shared_state;
         let produce_amount = 1;
         let thresh_hold = 15;
@@ -108,7 +108,7 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
 }
 
 fn consumer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated; 2]>, producer_key: StateKey<Option<usize>>, count_key: StateKey<usize>) -> Box<SimGen<Effect>> {
-    Box::new(move |x: SimContext<Effect>| {        
+    Box::new(move |_x: SimContext<Effect>| {        
         let shared_state = shared_state;
         let consume_amount = 8;
         let interval = 8.0;

@@ -2,8 +2,13 @@
 
 use desim::EndCondition;
 use desim_benchmark::test_simulation;
+use desim_benchmark::simulation;
 
 fn main() {
+    simulation(50000.0);
+}
+
+fn testing_simulation() {
     let (simulation, state, count_key) = test_simulation();
     println!("Running the simulation");    
     let simulation = simulation.run(EndCondition::Time(1002.0));
