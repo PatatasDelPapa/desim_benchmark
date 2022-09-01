@@ -3,7 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use desim_benchmark::simulation;
 
 fn bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("simulation");
+    let mut group = c.benchmark_group("desim_spsc");
     for limit in [10000.0, 20000.0, 30000.0, 40000.0, 50000.0] {
             group.bench_with_input(BenchmarkId::from_parameter(limit), &limit, |b, &limit| {
                     b.iter(|| simulation(black_box(limit)));
