@@ -8,6 +8,7 @@ fn main() {
     simulation(50000.0);
 }
 
+#[allow(dead_code)]
 fn testing_simulation() {
     let (simulation, state, count_key) = test_simulation();
     println!("Running the simulation");    
