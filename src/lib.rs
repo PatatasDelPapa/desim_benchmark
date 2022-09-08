@@ -2,9 +2,9 @@
 
 mod state;
 
-use std::{rc::Rc, cell::Cell};
+use std::{cell::Cell, rc::Rc};
 
-use desim::{Effect, SimGen, Simulation, SimContext};
+use desim::{Effect, SimContext, SimGen, Simulation};
 use state::StateKey;
 
 use crate::state::State;
@@ -23,31 +23,46 @@ pub fn simulation(limit: f64) {
 
 fn set_simulation() -> Simulation<Effect> {
     let mut simulation = Simulation::new();
-    
+
     let shared_state = Rc::new(Cell::new(State::default()));
-    
+
     let mut state = shared_state.take();
     let count_key = state.insert(0);
-    
+
     let producer_key = state.insert(None);
     let consumer_key = state.insert(None);
     let passivated_key = state.insert([Passivated::False; 2]);
-    
-    let producer = simulation.create_process(producer(Rc::clone(&shared_state), passivated_key, consumer_key, count_key));
-    let consumer = simulation.create_process(consumer(Rc::clone(&shared_state), passivated_key, producer_key, count_key));
-    
-    *state.get_mut(producer_key).unwrap() = Some(producer); 
-    *state.get_mut(consumer_key).unwrap() = Some(consumer); 
-        
+
+    let producer = simulation.create_process(producer(
+        Rc::clone(&shared_state),
+        passivated_key,
+        consumer_key,
+        count_key,
+    ));
+    let consumer = simulation.create_process(consumer(
+        Rc::clone(&shared_state),
+        passivated_key,
+        producer_key,
+        count_key,
+    ));
+
+    *state.get_mut(producer_key).unwrap() = Some(producer);
+    *state.get_mut(consumer_key).unwrap() = Some(consumer);
+
     simulation.schedule_event(0.0, producer, Effect::TimeOut(0.0));
     simulation.schedule_event(0.0, consumer, Effect::TimeOut(0.0));
-    
+
     shared_state.set(state);
-    
+
     simulation
 }
 
-fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated; 2]>, consumer_key: StateKey<Option<usize>>, count_key: StateKey<usize>) -> Box<SimGen<Effect>> {
+fn producer(
+    shared_state: Rc<Cell<State>>,
+    passivated_key: StateKey<[Passivated; 2]>,
+    consumer_key: StateKey<Option<usize>>,
+    count_key: StateKey<usize>,
+) -> Box<SimGen<Effect>> {
     Box::new(move |_x: SimContext<Effect>| {
         let shared_state = shared_state;
         let produce_amount = 1;
@@ -57,12 +72,12 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
         let mut state = shared_state.take();
         let consumer_key = state.remove(consumer_key).flatten().unwrap();
         shared_state.set(state);
-        
+
         loop {
             let mut state = shared_state.take();
             let passivated_list = state.get_mut(passivated_key).unwrap();
             passivated_list[0] = Passivated::False;
-            
+
             if passivated_list[1] == Passivated::True {
                 passivated_list[1] = Passivated::Warned;
                 passivated_list[0] = Passivated::True;
@@ -71,7 +86,10 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
                 // Diferente a mi libreria, esto no volvera a despertar a producer.
                 // Efectivamente producer hace Passivate aqui;
                 // println!("PRODUCER ACTIVATE CONSUMER and PASSIVATE");
-                yield Effect::Event { time: 0.0, process: consumer_key } ;
+                yield Effect::Event {
+                    time: 0.0,
+                    process: consumer_key,
+                };
                 // println!("PRODUCER awakes");
                 let mut state = shared_state.take();
                 let passivated_list = state.get_mut(passivated_key).unwrap();
@@ -79,9 +97,9 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
                 shared_state.set(state);
             } else {
                 shared_state.set(state);
-            }            
+            }
 
-            let mut state = shared_state.take();            
+            let mut state = shared_state.take();
             let count = state.get_mut(count_key).unwrap();
 
             if *count < thresh_hold {
@@ -95,11 +113,14 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
                 passivated_list[0] = Passivated::True;
                 if passivated_list[1] == Passivated::True {
                     shared_state.set(state);
-                //     println!("PRODUCER PASSIVATE and ACTIVATE CONSUMER");
-                    yield Effect::Event { time: 0.0 , process: consumer_key };
+                    //     println!("PRODUCER PASSIVATE and ACTIVATE CONSUMER");
+                    yield Effect::Event {
+                        time: 0.0,
+                        process: consumer_key,
+                    };
                 } else {
                     shared_state.set(state);
-                //     println!("PRODUCER PASSIVATE");
+                    //     println!("PRODUCER PASSIVATE");
                     yield Effect::Wait;
                 }
             }
@@ -107,8 +128,13 @@ fn producer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
     })
 }
 
-fn consumer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated; 2]>, producer_key: StateKey<Option<usize>>, count_key: StateKey<usize>) -> Box<SimGen<Effect>> {
-    Box::new(move |_x: SimContext<Effect>| {        
+fn consumer(
+    shared_state: Rc<Cell<State>>,
+    passivated_key: StateKey<[Passivated; 2]>,
+    producer_key: StateKey<Option<usize>>,
+    count_key: StateKey<usize>,
+) -> Box<SimGen<Effect>> {
+    Box::new(move |_x: SimContext<Effect>| {
         let shared_state = shared_state;
         let consume_amount = 8;
         let interval = 8.0;
@@ -116,18 +142,21 @@ fn consumer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
         let mut state = shared_state.take();
         let producer_key = state.remove(producer_key).flatten().unwrap();
         shared_state.set(state);
-        
+
         loop {
             let mut state = shared_state.take();
             let passivated_list = state.get_mut(passivated_key).unwrap();
             passivated_list[1] = Passivated::False;
-            
+
             if passivated_list[0] == Passivated::True {
                 passivated_list[0] = Passivated::Warned;
                 passivated_list[1] = Passivated::True;
                 shared_state.set(state);
                 // println!("CONSUMER ACTIVATE PRODUCER and PASSIVATE");
-                yield Effect::Event { time: 0.0, process: producer_key };
+                yield Effect::Event {
+                    time: 0.0,
+                    process: producer_key,
+                };
                 // println!("CONSUMER awakes");
                 let mut state = shared_state.take();
                 let passivated_list = state.get_mut(passivated_key).unwrap();
@@ -150,11 +179,14 @@ fn consumer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
                 passivated_list[1] = Passivated::True;
                 if passivated_list[0] == Passivated::True {
                     shared_state.set(state);
-                //     println!("CONSUMER PASSIVATE and ACTIVATE PRODUCER");
-                    yield Effect::Event { time: 0.0, process: producer_key };
+                    //     println!("CONSUMER PASSIVATE and ACTIVATE PRODUCER");
+                    yield Effect::Event {
+                        time: 0.0,
+                        process: producer_key,
+                    };
                 } else {
                     shared_state.set(state);
-                //     println!("CONSUMER PASSIVATE");
+                    //     println!("CONSUMER PASSIVATE");
                     yield Effect::Wait;
                 }
             }
@@ -162,29 +194,38 @@ fn consumer(shared_state: Rc<Cell<State>>, passivated_key: StateKey<[Passivated;
     })
 }
 
-
 pub fn test_simulation() -> (Simulation<Effect>, Rc<Cell<State>>, StateKey<usize>) {
     let mut simulation = Simulation::new();
-    
+
     let shared_state = Rc::new(Cell::new(State::default()));
-    
+
     let mut state = shared_state.take();
     let count_key = state.insert(0);
-    
+
     let producer_key = state.insert(None);
     let consumer_key = state.insert(None);
     let passivated_key = state.insert([Passivated::False; 2]);
-    
-    let producer = simulation.create_process(producer(Rc::clone(&shared_state), passivated_key, consumer_key, count_key));
-    let consumer = simulation.create_process(consumer(Rc::clone(&shared_state), passivated_key, producer_key, count_key));
-    
-    *state.get_mut(producer_key).unwrap() = Some(producer); 
-    *state.get_mut(consumer_key).unwrap() = Some(consumer); 
-        
+
+    let producer = simulation.create_process(producer(
+        Rc::clone(&shared_state),
+        passivated_key,
+        consumer_key,
+        count_key,
+    ));
+    let consumer = simulation.create_process(consumer(
+        Rc::clone(&shared_state),
+        passivated_key,
+        producer_key,
+        count_key,
+    ));
+
+    *state.get_mut(producer_key).unwrap() = Some(producer);
+    *state.get_mut(consumer_key).unwrap() = Some(consumer);
+
     simulation.schedule_event(0.0, producer, Effect::TimeOut(0.0));
     simulation.schedule_event(0.0, consumer, Effect::TimeOut(0.0));
-    
+
     shared_state.set(state);
-    
+
     (simulation, shared_state, count_key)
 }

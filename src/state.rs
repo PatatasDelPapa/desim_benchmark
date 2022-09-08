@@ -55,11 +55,19 @@ impl State {
         //     None
         // }
 
-        if self.store.get(key.id).is_some() {
-            self.store[key.id].take().map(|value| *value.downcast::<V>().expect("Ensured by the Key type."))
-        } else {
-            None
-        }
+        // if self.store.get(key.id).is_some() {
+        //     self.store[key.id]
+        //         .take()
+        //         .map(|value| *value.downcast::<V>().expect("Ensured by the Key type."))
+        // } else {
+        //     None
+        // }
+
+        //
+        self.store
+            .get_mut(key.id)
+            .and_then(Option::take)
+            .map(|value| *value.downcast::<V>().expect("Ensured by the Key type."))
     }
 
     pub fn get<V: 'static>(&self, key: StateKey<V>) -> Option<&V> {
@@ -75,8 +83,7 @@ impl State {
 
         self.store
             .get(key.id)
-            .map(Option::as_ref)
-            .flatten()
+            .and_then(Option::as_ref)
             .map(|value| value.downcast_ref::<V>().expect("Ensured by the key type."))
     }
 
@@ -97,8 +104,7 @@ impl State {
 
         self.store
             .get_mut(key.id)
-            .map(Option::as_mut)
-            .flatten()
+            .and_then(Option::as_mut)
             .map(|value| value.downcast_mut::<V>().expect("Ensured by the key type."))
     }
 
